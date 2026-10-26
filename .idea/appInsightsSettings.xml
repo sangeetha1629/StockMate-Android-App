@@ -8,10 +8,10 @@
             <InsightsFilterSettings>
               <option name="connection">
                 <ConnectionSetting>
-                  <option name="appId" value="PLACEHOLDER" />
-                  <option name="mobileSdkAppId" value="" />
-                  <option name="projectId" value="" />
-                  <option name="projectNumber" value="" />
+                  <option name="appId" value="com.example.stockmate" />
+                  <option name="mobileSdkAppId" value="1:111340858359:android:e8f0731728eef3b4419cf2" />
+                  <option name="projectId" value="stockmate-f2e17" />
+                  <option name="projectNumber" value="111340858359" />
                 </ConnectionSetting>
               </option>
               <option name="signal" value="SIGNAL_UNSPECIFIED" />
