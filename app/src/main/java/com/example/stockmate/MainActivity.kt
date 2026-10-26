@@ -1,5 +1,8 @@
 package com.example.stockmate
 
+import android.app.NotificationChannel
+import android.app.NotificationManager
+import android.os.Build
 import android.os.Bundle
 import android.widget.Toast
 import android.window.SplashScreen
@@ -85,15 +88,88 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.google.firebase.auth.FirebaseAuth
 import androidx.compose.runtime.*
+import android.Manifest
+import android.content.pm.PackageManager
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.core.app.NotificationCompat
+import androidx.core.content.ContextCompat
+import android.content.Context
+import androidx.compose.ui.platform.LocalContext
+
 
 class MainActivity : ComponentActivity() {
+    private val notificationPermissionLauncher =
+        registerForActivityResult(
+            ActivityResultContracts.RequestPermission()
+        ) { isGranted ->
+            if (isGranted) {
+                // Notification permission granted
+            }
+        }
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+        createLowStockNotificationChannel(this)
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            if (ContextCompat.checkSelfPermission(
+                    this,
+                    Manifest.permission.POST_NOTIFICATIONS
+                ) != PackageManager.PERMISSION_GRANTED
+            ) {
+                notificationPermissionLauncher.launch(
+                    Manifest.permission.POST_NOTIFICATIONS
+                )
+            }
+        }
         setContent {
             StockMateApp()
         }
     }
+}
+fun createLowStockNotificationChannel(context: Context) {
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+        val channel = NotificationChannel(
+            "low_stock_channel",
+            "Low Stock Alerts",
+            NotificationManager.IMPORTANCE_HIGH
+        ).apply {
+            description = "Notifications for products with low stock"
+        }
+
+        val notificationManager =
+            context.getSystemService(Context.NOTIFICATION_SERVICE)
+                    as NotificationManager
+
+        notificationManager.createNotificationChannel(channel)
+    }
+}
+fun showLowStockNotification(
+    context: Context,
+    productName: String,
+    quantity: Int
+) {
+    val notification = NotificationCompat.Builder(
+        context,
+        "low_stock_channel"
+    )
+        .setSmallIcon(R.drawable.ic_launcher_foreground)
+        .setContentTitle("Low Stock Alert")
+        .setContentText(
+            "$productName stock is low. Available quantity: $quantity"
+        )
+        .setPriority(NotificationCompat.PRIORITY_HIGH)
+        .setAutoCancel(true)
+        .build()
+
+    val notificationManager =
+        context.getSystemService(Context.NOTIFICATION_SERVICE)
+                as NotificationManager
+
+    notificationManager.notify(
+        productName.hashCode(),
+        notification
+    )
 }
 
 @Composable
@@ -274,6 +350,31 @@ fun HomeScreen(navController: NavHostController) {
     val lowStockCount = products.count {
         it.quantity <= 5
     }
+
+    val context = LocalContext.current
+
+    var notifiedProducts by remember {
+        mutableStateOf(setOf<String>())
+    }
+
+    LaunchedEffect(products) {
+        products
+            .filter { it.quantity <= 5 }
+            .forEach { product ->
+                val productKey = product.id
+
+                if (productKey !in notifiedProducts) {
+                    showLowStockNotification(
+                        context = context,
+                        productName = product.name,
+                        quantity = product.quantity
+                    )
+
+                    notifiedProducts = notifiedProducts + productKey
+                }
+            }
+    }
+
 
     val totalSales = sales.sumOf {
         it.totalAmount
